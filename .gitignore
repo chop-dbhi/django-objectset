@@ -1,0 +1,10 @@
+.DS_Store
+*.ipynb
+*.sw?
+*.py?
+MANIFEST
+dist
+
+tests.db
+*.egg-info
+*.egg

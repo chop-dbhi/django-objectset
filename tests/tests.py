@@ -6,8 +6,6 @@ from .models import Record, RecordSet, RecordSetObject, SimpleRecordSet
 
 
 class SetTestCase(TestCase):
-    fixtures = ['sets.json']
-
     def test_properties(self):
         s = SimpleRecordSet()
         self.assertEqual(s._set_object_class, SimpleRecordSet.records.through)

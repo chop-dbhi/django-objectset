@@ -1,7 +1,7 @@
 import django
 from datetime import datetime
 from django.db import models, transaction
-from django.db.models.query import EmptyQuerySet
+from django.db.models.query import QuerySet, EmptyQuerySet
 from django.core.exceptions import ImproperlyConfigured
 from .exceptions import ObjectSetError
 from .decorators import cached_property
@@ -89,20 +89,24 @@ class ObjectSet(models.Model):
     def __iand__(self, other):
         "Performs an inplace intersection of this set and `other`."
         self._pending = other._objects & self._objects
+        return self
 
     def __ior__(self, other):
         "Performs and inplace union of this set and `other`."
         self._pending = other._objects | self._objects
+        return self
 
     def __ixor__(self, other):
         "Performs an inplace exclusive union of this set and `other`."
         excluded = models.Q(pk__in=(other._objects & self._objects))
         self._pending = (other._objects | self._objects).exclude(excluded)
+        return self
 
     def __isub__(self, other):
         "Inplace removal of objects from this set that are in `other`."
         excluded = models.Q(pk__in=other._objects)
         self._pending = self._objects.exclude(excluded)
+        return self
 
     @cached_property
     def _set_object_rel(self):

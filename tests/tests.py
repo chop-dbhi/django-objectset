@@ -31,6 +31,21 @@ class SetTestCase(TestCase):
         objs = [Record(pk=i) for i in xrange(1, 5)]
         self.assertEqual(repr(SimpleRecordSet(objs)), 'SimpleRecordSet([<Record: 1>, <Record: 2>, <Record: 3>, <Record: 4>])')
 
+    def test_and(self):
+        s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
+        s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)
+        s3 = s1 & s2
+        s3.save()
+
+        self.assertEqual(sorted([o.pk for o in s3]), [3, 4])
+
+    def test_iand(self):
+        s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
+        s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)
+        s2 &= s1
+        s2.save()
+
+        self.assertEqual(sorted([o.pk for o in s2]), [3, 4])
 
     def test_or(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
@@ -40,13 +55,13 @@ class SetTestCase(TestCase):
 
         self.assertEqual(sorted([o.pk for o in s3]), range(1, 7))
 
-    def test_and(self):
+    def test_ior(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
         s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)
-        s3 = s1 & s2
-        s3.save()
+        s2 |= s1
+        s2.save()
 
-        self.assertEqual(sorted([o.pk for o in s3]), [3, 4])
+        self.assertEqual(sorted([o.pk for o in s2]), range(1, 7))
 
     def test_xor(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
@@ -56,6 +71,14 @@ class SetTestCase(TestCase):
 
         self.assertEqual(sorted([o.pk for o in s3]), [1, 2, 5, 6])
 
+    def test_ixor(self):
+        s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
+        s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)
+        s2 ^= s1
+        s2.save()
+
+        self.assertEqual(sorted([o.pk for o in s2]), [1, 2, 5, 6])
+
     def test_sub(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
         s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)
@@ -63,6 +86,14 @@ class SetTestCase(TestCase):
         s3.save()
 
         self.assertEqual(sorted([o.pk for o in s3]), [1, 2])
+
+    def test_isub(self):
+        s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
+        s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)
+        s2 -= s1
+        s2.save()
+
+        self.assertEqual(sorted([o.pk for o in s2]), [5, 6])
 
     def test_multi_op(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)

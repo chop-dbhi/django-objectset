@@ -3,7 +3,8 @@ from objectset.models import ObjectSet, SetObject
 
 
 class Record(models.Model):
-    pass
+    def __unicode__(self):
+        return unicode(self.pk)
 
 
 class RecordSet(ObjectSet):

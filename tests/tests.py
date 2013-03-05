@@ -26,6 +26,10 @@ class SetTestCase(TestCase):
         self.assertEqual(s.count, 5)
         self.assertEqual(s.pk, 1)
 
+    def test_repr(self):
+        objs = [Record(pk=i) for i in xrange(5)]
+        self.assertEqual(repr(SimpleRecordSet(objs)), 'SimpleRecordSet([<Record: 0>, <Record: 1>, <Record: 2>, <Record: 3>, <Record: 4>])')
+
     def test_or(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
         s2 = SimpleRecordSet([Record(pk=i) for i in xrange(3, 7)], save=True)

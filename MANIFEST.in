@@ -1,0 +1,4 @@
+include LICENSE
+include CHANGELOG
+global-exclude .DS_Store
+prune tests

@@ -1,6 +1,7 @@
 import time
 from django.test import TestCase
 from django.db import IntegrityError
+from django.db.models.query import QuerySet, EmptyQuerySet
 from objectset.models import ObjectSetError
 from .models import Record, RecordSet, RecordSetObject, SimpleRecordSet
 
@@ -18,17 +19,18 @@ class SetTestCase(TestCase):
         self.assertEqual(s._through_object_rel, 'record')
 
     def test_init(self):
-        objs = [Record(pk=i) for i in xrange(5)]
+        objs = [Record(pk=i) for i in xrange(1, 5)]
         s = SimpleRecordSet(objs)
-        self.assertEqual(s._pending, objs)
+        self.assertTrue(isinstance(s._pending, QuerySet))
         s.save()
-        self.assertTrue(isinstance(s._pending, s._object_class.objects.none().__class__))
-        self.assertEqual(s.count, 5)
+        self.assertTrue(isinstance(s._pending, EmptyQuerySet))
+        self.assertEqual(s.count, 4)
         self.assertEqual(s.pk, 1)
 
     def test_repr(self):
-        objs = [Record(pk=i) for i in xrange(5)]
-        self.assertEqual(repr(SimpleRecordSet(objs)), 'SimpleRecordSet([<Record: 0>, <Record: 1>, <Record: 2>, <Record: 3>, <Record: 4>])')
+        objs = [Record(pk=i) for i in xrange(1, 5)]
+        self.assertEqual(repr(SimpleRecordSet(objs)), 'SimpleRecordSet([<Record: 1>, <Record: 2>, <Record: 3>, <Record: 4>])')
+
 
     def test_or(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)

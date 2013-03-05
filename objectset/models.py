@@ -36,8 +36,14 @@ class ObjectSet(models.Model):
         # Assume this is a list, tuple, queryset of objects
         if args and hasattr(args[0], '__iter__'):
             save = kwargs.pop('save', False)
-            self._pending = args[0]
-            args = args[1:]
+            args = list(args)
+            queryset = args.pop(0)
+
+            # Create a queryset if this is a list of tuple of instances
+            if not isinstance(queryset, QuerySet):
+                pks = [x.pk for x in queryset]
+                queryset = self._object_class.objects.filter(pk__in=pks)
+            self._pending = queryset
 
         super(ObjectSet, self).__init__(*args, **kwargs)
 
@@ -172,7 +178,7 @@ class ObjectSet(models.Model):
         objects = self._object_class.objects.all()
         pks = self._set_objects(include_removed=False)\
             .values_list('{0}__pk'.format(self._through_object_rel))
-        return objects.filter(pk__in=pks)
+        return objects.filter(pk__in=pks) | self._pending
 
     def _set_objects(self, include_removed=True):
         "Returns a queryset of set objects."
@@ -242,12 +248,12 @@ class ObjectSet(models.Model):
 
         # Handle pending data after the set has been saved
         if self._pending is not None and not isinstance(self._pending, EmptyQuerySet):
-            pending = self._pending
+            pending = list(self._pending.only('pk'))
             self._pending = self._object_class.objects.none()
             if new and BULK_SUPPORTED:
                 self.bulk(pending)
             else:
-                self.update(pending)
+                self.replace(pending)
 
     @transaction.commit_on_success
     def bulk(self, objs, added=False):

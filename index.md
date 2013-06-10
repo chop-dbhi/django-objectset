@@ -3,16 +3,41 @@ layout: default
 title: "Jekyll Docs Template"
 ---
 
-### Get Started
-
-Start by [creating a new post](http://jekyllrb.com/docs/posts/) one of the categories listed in `_config.yml`. It will appear in the navigation on the left once recompiled. Or use the supplied script to make creating pages easier:
+## Install
 
 ```bash
-ruby bin/jekyll-page "Some Page Title" ref
+pip install django-objectset
 ```
 
-#### Don't Forget
+## Define
 
-- Add your own content to this page (i.e. `index.md`) and change the `title`
-- Change `title` and `subtitle` defined in `config.yml` for your site
-- Set the `baseurl` in `_config.yml` for your repo if deploying to GitHub pages
+```python
+from django.contrib.auth.models import User
+from objectset.models import ObjectSet
+
+class Group(ObjectSet):
+    users = models.ManyToManyField(User)
+```
+
+## Use
+
+_Sets created using operators must be saved manually._
+
+```python
+>>> group1 = Group([user1, user2, user3], save=True)
+>>> group2 = Group([user3, user4, user5, user6], save=True)
+>>> len(group1)
+3
+
+>>> group1 & group2
+Group([user3])
+
+>>> group1 | group2
+Group([user1, user2, user3, user4, user5, user6])
+
+>>> group1 ^ group2
+Group([user1, user2, user4, user5, user6])
+
+>>> group1 - group2
+Group([user4, user5, user6])
+```

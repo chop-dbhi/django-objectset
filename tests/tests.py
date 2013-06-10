@@ -27,6 +27,33 @@ class SetTestCase(TestCase):
         self.assertEqual(s.count, 4)
         self.assertEqual(s.pk, 1)
 
+    def test_init_ids(self):
+        objs = range(1, 5)
+        s = SimpleRecordSet(objs)
+        self.assertTrue(isinstance(s._pending, QuerySet))
+        s.save()
+        self.assertTrue(isinstance(s._pending, EmptyQuerySet))
+        self.assertEqual(s.count, 4)
+        self.assertEqual(s.pk, 1)
+
+    def test_init_objects(self):
+        objs = [Record(pk=i) for i in xrange(1, 5)]
+        s = SimpleRecordSet(objects=objs)
+        self.assertTrue(isinstance(s._pending, QuerySet))
+        s.save()
+        self.assertTrue(isinstance(s._pending, EmptyQuerySet))
+        self.assertEqual(s.count, 4)
+        self.assertEqual(s.pk, 1)
+
+    def teset_init_object_ids(self):
+        objs = range(1, 5)
+        s = SimpleRecordSet(objects=objs)
+        self.assertTrue(isinstance(s._pending, QuerySet))
+        s.save()
+        self.assertTrue(isinstance(s._pending, EmptyQuerySet))
+        self.assertEqual(s.count, 4)
+        self.assertEqual(s.pk, 1)
+
     def test_repr(self):
         objs = [Record(pk=i) for i in xrange(1, 5)]
         self.assertEqual(repr(SimpleRecordSet(objs)), 'SimpleRecordSet([<Record: 1>, <Record: 2>, <Record: 3>, <Record: 4>])')

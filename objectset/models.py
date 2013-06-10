@@ -31,18 +31,27 @@ class ObjectSet(models.Model):
         # Set to an empty queryset
         self._pending = self._object_class.objects.none()
 
-        save = False
+        queryset = None
+        save = kwargs.pop('save', False)
 
         # Assume this is a list, tuple, queryset of objects
         if args and hasattr(args[0], '__iter__'):
-            save = kwargs.pop('save', False)
             args = list(args)
             queryset = args.pop(0)
+        elif 'objects' in kwargs:
+            queryset = kwargs.pop('objects')
 
+        if queryset is not None:
             # Create a queryset if this is a list of tuple of instances
-            if not isinstance(queryset, QuerySet):
-                pks = [x.pk for x in queryset]
+            if not isinstance(queryset, QuerySet) and len(queryset):
+                # If these are list of models, extra their primary keys
+                # otherwise a assume a list of pks
+                if isinstance(queryset[0], models.Model):
+                    pks = [x.pk for x in queryset]
+                else:
+                    pks = queryset
                 queryset = self._object_class.objects.filter(pk__in=pks)
+
             self._pending = queryset
 
         super(ObjectSet, self).__init__(*args, **kwargs)

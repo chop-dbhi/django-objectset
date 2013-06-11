@@ -355,14 +355,14 @@ class ObjectSet(models.Model):
         return removed
 
     @transaction.commit_on_success
-    def replace(self, objs, delete=False):
+    def replace(self, objs, delete=False, added=True):
         "Replace the current set with the new objects."
         self._check_pk()
         self.clear(delete=delete)
         # On a real delete, a bulk load is faster
         if delete or not self._set_object_class_supported:
-            return self.bulk(objs)
-        return self.update(objs)
+            return self.bulk(objs, added=added)
+        return self.update(objs, added=added)
 
     def purge(self):
         "Deletes objects in the set marked as `removed`."

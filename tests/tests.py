@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.db import IntegrityError
 from django.db.models.query import QuerySet, EmptyQuerySet
 from objectset.models import ObjectSetError
+from objectset.forms import objectset_form_factory
 from .models import Record, RecordSet, RecordSetObject, SimpleRecordSet
 
 
@@ -372,3 +373,40 @@ class SetObjectSetTestCase(TestCase):
 
         # The `removed` records have been deleted
         self.assertEqual(s._set_objects().count(), 4)
+
+
+class SetFormTest(TestCase):
+    def test(self):
+        RecordSetForm = objectset_form_factory(RecordSet)
+        form = RecordSetForm(data={'objects': range(1, 5)})
+        self.assertTrue(form.is_valid())
+        s = form.save()
+        self.assertEqual(s.count, 4)
+        self.assertEqual(s.pk, 1)
+
+    def test_subclass(self):
+        from django import forms
+
+        RecordSetForm = objectset_form_factory(RecordSet)
+
+        class CustomRecordSetForm(RecordSetForm):
+            name = forms.CharField()
+
+        form = CustomRecordSetForm(data={'objects': range(1, 5)})
+        self.assertFalse(form.is_valid())
+
+        form = CustomRecordSetForm(data={'objects': range(1, 5), 'name': 'Foo'})
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data['name'], 'Foo')
+
+    def test_instance(self):
+        s = SimpleRecordSet(range(1, 5), save=True)
+
+        SimpleRecordSetForm = objectset_form_factory(SimpleRecordSet)
+        form = SimpleRecordSetForm(data={'objects': range(6, 9)}, instance=s)
+
+        self.assertTrue(form.is_valid())
+        form.save()
+
+        self.assertEqual(s.count, 3)
+        self.assertEqual(sorted(list([x.pk for x in s])), [6, 7, 8])

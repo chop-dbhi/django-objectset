@@ -53,7 +53,7 @@ Of course, set operations can be chained:
 Set([1, 3, 11, 13, 14])
 
 # equivalent
->>> set2 - (set1 ^ (set1 - (set2 & set1)))
+>>> (((set2 - set1) ^ set1) - set2) & set1
 Set([1, 3, 11, 13, 14])
 ```
 

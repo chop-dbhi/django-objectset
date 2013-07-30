@@ -9,7 +9,7 @@ subtitle: 'Set-like abstract model class for Django'
 navigation: 2
 
 # URL to source code, used in _includes/footer.html
-codeurl: 'https://github.com/bruth/jekyll-docs-template'
+codeurl: 'https://github.com/cbmi/django-objectset'
 
 # Default categories (in order) to appear in the navigation
 sections: [

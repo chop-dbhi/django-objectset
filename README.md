@@ -1,5 +1,7 @@
 # django-objectset
 
+[![Build Status](https://travis-ci.org/cbmi/django-objectset.png?branch=master)](https://travis-ci.org/cbmi/django-objectset) [![Coverage Status](https://coveralls.io/repos/cbmi/django-objectset/badge.png?branch=master)](https://coveralls.io/r/cbmi/django-objectset?branch=master)
+
 Set-like abstract model class for Django.
 
 ## Install

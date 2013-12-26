@@ -31,7 +31,13 @@ def objectset_form_factory(Model, queryset=None):
                                                  required=False)
 
         def save(self, *args, **kwargs):
-            self.instance._pending = self.cleaned_data.get('objects')
+            objects = self.cleaned_data.get('objects')
+            # Django 1.4 nuance when working with an empty list. It is not
+            # properly defined an empty query set
+            if isinstance(objects, list) and not objects:
+                objects = self.instance.__class__.objects.none()
+
+            self.instance._pending = objects
             return super(form_class, self).save(*args, **kwargs)
 
         class Meta(object):

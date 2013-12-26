@@ -147,9 +147,20 @@ class SetResource(BaseSetResource):
 
 
 class SetObjectsResource(BaseSetResource):
-    pass
+    def is_not_found(self, request, response, pk):
+        instance = self.get_object(request, pk=pk)
+        if instance is None:
+            return True
+        request.instance = instance
 
+    def get_serialize_template(self, request, **kwargs):
+        return {'fields': [':local']}
 
+    def get(self, request, pk):
+        queryset = request.instance._objects
+        params = self.get_params(request)
+        template = self.get_serialize_template(request, **params)
+        return serialize(queryset, **template)
 
 
 def get_url_patterns(Model, resources=None, prefix=None):

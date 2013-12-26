@@ -1,3 +1,11 @@
+from django.core.exceptions import ImproperlyConfigured
+try:
+    import restlib2  # noqa
+    import preserialize  # noqa
+except ImportError:
+    raise ImproperlyConfigured('restlib2 and django-preserialize must be '
+                               'installed to use the resource classes')
+
 from django.conf.urls import patterns, url
 from django.http import HttpResponse
 from restlib2.resources import Resource

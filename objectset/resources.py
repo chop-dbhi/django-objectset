@@ -129,7 +129,9 @@ class SetResource(BaseSetResource):
         request.instance = instance
 
     def get(self, request, pk):
-        return serialize(request.instance, **self.template)
+        params = self.get_params(request)
+        template = self.get_serialize_template(request, **params)
+        return serialize(request.instance, **template)
 
     def put(self, request, pk):
         form = self.form_class(request.data, instance=request.instance)

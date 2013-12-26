@@ -64,7 +64,7 @@ def apply_operations(instance, operations, queryset=None):
                 raise ValueError('Set operand does not exist')
 
         # Treat operand as list of object ids
-        elif isinstance(operand, (list, tuple)) and operand:
+        elif isinstance(operand, (list, tuple)):
             operand = queryset.model(operand)
 
         else:

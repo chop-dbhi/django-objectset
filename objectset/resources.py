@@ -6,8 +6,10 @@ except ImportError:
     raise ImproperlyConfigured('restlib2 and django-preserialize must be '
                                'installed to use the resource classes')
 
+from functools import partial
 from django.conf.urls import patterns, url
 from django.http import HttpResponse
+from django.core.urlresolvers import reverse
 from restlib2.resources import Resource
 from restlib2.http import codes
 from restlib2.params import Parametizer, BoolParam
@@ -81,6 +83,25 @@ def set_objects_prehook(queryset):
     return queryset
 
 
+def set_links_posthook(instance, attrs, request):
+    uri = request.build_absolute_uri
+    # This prefix is intended to be shared across resources for the same
+    # set type
+    prefix = '{0}-'.format(instance.__class__.__name__.lower())
+
+    attrs['_links'] = {
+        'self': {
+            'href': uri(reverse('{0}set'.format(prefix),
+                        kwargs={'pk': instance.pk}))
+        },
+        'objects': {
+            'href': uri(reverse('{0}objects'.format(prefix),
+                        kwargs={'pk': instance.pk})),
+        },
+    }
+    return attrs
+
+
 class SetParametizer(Parametizer):
     embed = BoolParam()
 
@@ -101,7 +122,6 @@ class BaseSetResource(Resource):
 
     def get_serialize_template(self, request, **kwargs):
         "Prepare the serialize template"
-        # TODO
         instance = self.model()
         relation = instance._set_object_rel
 
@@ -121,6 +141,7 @@ class BaseSetResource(Resource):
             template = {
                 'fields': [':local', 'objects'],
                 'exclude': [relation],
+                'posthook': partial(set_links_posthook, request=request),
                 'aliases': {
                     'objects': relation,
                 },
@@ -220,7 +241,7 @@ class SetObjectsResource(BaseSetResource):
         return serialize(queryset, **template)
 
 
-def get_url_patterns(Model, resources=None, prefix=None):
+def get_url_patterns(Model, resources=None):
     """Returns urlpatterns for the defined resources.
 
     `resources` is a dict corresponding to each resource:
@@ -260,9 +281,7 @@ def get_url_patterns(Model, resources=None, prefix=None):
 
         resources['objects'] = DefaultSetObjectsResource
 
-    # Define a prefix for the url names to prevent conflicts
-    if not prefix:
-        prefix = '{0}-'.format(Model.__name__.lower())
+    prefix = '{0}-'.format(Model.__name__.lower())
 
     return patterns(
         '',

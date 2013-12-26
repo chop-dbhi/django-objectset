@@ -177,7 +177,15 @@ class SetsResource(BaseSetResource):
         form = self.form_class(request.data)
 
         if form.is_valid():
-            instance = form.save()
+            instance = form.save(commit=False)
+            if 'operations' in request.data:
+                queryset = self.get_queryset(request)
+                try:
+                    apply_operations(instance, request.data['operations'],
+                                     queryset=queryset)
+                except ValueError:
+                    return HttpResponse(status=codes.unprocessable_entity)
+            instance.save()
             params = self.get_params(request)
             template = self.get_serialize_template(request, **params)
             return serialize(instance, **template)

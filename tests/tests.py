@@ -441,14 +441,34 @@ class ResourcesTest(TestCase):
                                     content_type='application/json',
                                     HTTP_ACCEPT='application/json')
         data = json.loads(response.content)
-        self.assertEqual(data['objects'], [{'id': 1}, {'id': 2}, {'id': 3}])
+        self.assertEqual([o['id'] for o in data['objects']], [1, 2, 3])
 
+        s2 = RecordSet([4, 5, 6], save=True)
         response = self.client.post('/?embed=1',
-                                    json.dumps({'objects': [1, 2, 3]}),
+                                    json.dumps({
+                                        'objects': [1, 2, 3],
+                                        'operations': [
+                                            {'set': s2.pk, 'operator': 'or'}
+                                        ],
+                                    }),
                                     content_type='application/json',
                                     HTTP_ACCEPT='application/json')
         data = json.loads(response.content)
-        self.assertEqual(data['objects'], [{'id': 1}, {'id': 2}, {'id': 3}])
+        self.assertEqual([o['id'] for o in data['objects']],
+                         [1, 2, 3, 4, 5, 6])
+
+        s2 = RecordSet([4, 5, 6], save=True)
+        response = self.client.post('/?embed=1',
+                                    json.dumps({
+                                        'operations': [
+                                            {'set': s2.pk, 'operator': 'or'}
+                                        ],
+                                    }),
+                                    content_type='application/json',
+                                    HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+        self.assertEqual([o['id'] for o in data['objects']],
+                         [4, 5, 6])
 
     def test_get_set(self):
         RecordSet([1, 2, 3], save=True)

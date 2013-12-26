@@ -150,9 +150,6 @@ class SetObjectsResource(BaseSetResource):
     pass
 
 
-class SetOperationsResource(BaseSetResource):
-    def post(request, pk, *args):
-        pass
 
 
 def get_url_patterns(Model, resources=None, prefix=None):
@@ -162,7 +159,6 @@ def get_url_patterns(Model, resources=None, prefix=None):
 
         - `sets` => SetsResource
         - `set` => SetResource
-        - `operations` => SetOperationsResource
         - `objects` => SetObjectsResource
 
     """
@@ -196,13 +192,6 @@ def get_url_patterns(Model, resources=None, prefix=None):
 
         resources['objects'] = DefaultSetObjectsResource
 
-    if 'operations' not in resources:
-        class DefaultSetOperationsResource(SetOperationsResource):
-            model = Model
-            form_class = default_form_class
-
-        resources['operations'] = DefaultSetOperationsResource
-
     # Define a prefix for the url names to prevent conflicts
     if not prefix:
         prefix = '{0}-'.format(Model.__name__.lower())
@@ -215,7 +204,4 @@ def get_url_patterns(Model, resources=None, prefix=None):
             name='{0}set'.format(prefix)),
         url(r'^(?P<pk>\d+)/objects/$', resources['objects'](),
             name='{0}objects'.format(prefix)),
-        url(r'^(?P<pk>\d+)/(?:(and|or|xor|sub)/(\d+)/)+/$',
-            resources['operations'](),
-            name='{0}operations'.format(prefix)),
     )

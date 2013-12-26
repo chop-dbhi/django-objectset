@@ -161,7 +161,7 @@ class SetsResource(BaseSetResource):
             template = self.get_serialize_template(request, **params)
             return serialize(instance, **template)
         return HttpResponse(dict(form.errors),
-                            status=codes.unprocessable_enity)
+                            status=codes.unprocessable_entity)
 
 
 class SetResource(BaseSetResource):
@@ -196,7 +196,7 @@ class SetResource(BaseSetResource):
             form.save()
             return HttpResponse(status=codes.no_content)
         return HttpResponse(dict(form.errors),
-                            status=codes.unprocessable_enity)
+                            status=codes.unprocessable_entity)
 
     def delete(self, request, pk):
         request.instance.delete()

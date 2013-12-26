@@ -145,6 +145,7 @@ class ObjectSet(models.Model):
             return through.object_set_rel
 
         field = None
+
         for f in through._meta.fields:
             if isinstance(f, models.ForeignKey) and f.rel.to is self.__class__:
                 if field is None:
@@ -153,9 +154,11 @@ class ObjectSet(models.Model):
                 raise ImproperlyConfigured('No explicit through model set '
                                            'field relation has been defined, '
                                            'but more than one exists.')
+
         if field is None:
             raise ImproperlyConfigured('No through model set field relation '
                                        'was found.')
+
         return field.name
 
     @cached_property
@@ -165,18 +168,22 @@ class ObjectSet(models.Model):
             return through.object_set_rel
 
         field = None
+
         for f in through._meta.fields:
             if isinstance(f, models.ForeignKey) and \
                     f.rel.to is self._object_class:
                 if field is None:
                     field = f
                     continue
+
                 raise ImproperlyConfigured('No explicit through model object '
                                            'field relation has been defined, '
                                            'but more than one exists.')
+
         if field is None:
             raise ImproperlyConfigured('No through model object field '
                                        'relation was found.')
+
         return field.name
 
     @cached_property

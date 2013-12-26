@@ -178,6 +178,7 @@ class SetsResource(BaseSetResource):
 
         if form.is_valid():
             instance = form.save(commit=False)
+
             if 'operations' in request.data and request.data['operations']:
                 queryset = self.get_queryset(request)
                 try:
@@ -188,7 +189,9 @@ class SetsResource(BaseSetResource):
             instance.save()
             params = self.get_params(request)
             template = self.get_serialize_template(request, **params)
+
             return serialize(instance, **template)
+
         return HttpResponse(dict(form.errors),
                             status=codes.unprocessable_entity)
 
@@ -212,18 +215,22 @@ class SetResource(BaseSetResource):
 
         instance = request.instance
         queryset = self.get_queryset(request)
+
         try:
             apply_operations(instance, request.data, queryset=queryset)
             instance.save()
         except ValueError:
             return HttpResponse(status=codes.unprocessable_entity)
+
         return HttpResponse(status=codes.no_content)
 
     def put(self, request, pk):
         form = self.form_class(request.data, instance=request.instance)
+
         if form.is_valid():
             form.save()
             return HttpResponse(status=codes.no_content)
+
         return HttpResponse(dict(form.errors),
                             status=codes.unprocessable_entity)
 

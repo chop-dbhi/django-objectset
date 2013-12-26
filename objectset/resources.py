@@ -178,7 +178,7 @@ class SetsResource(BaseSetResource):
 
         if form.is_valid():
             instance = form.save(commit=False)
-            if 'operations' in request.data:
+            if 'operations' in request.data and request.data['operations']:
                 queryset = self.get_queryset(request)
                 try:
                     apply_operations(instance, request.data['operations'],

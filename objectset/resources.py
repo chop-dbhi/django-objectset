@@ -208,27 +208,21 @@ class SetResource(BaseSetResource):
         template = self.get_serialize_template(request, **params)
         return serialize(request.instance, **template)
 
-    def post(self, request, pk):
-        # Requires at least one operation
-        if not request.data:
-            return HttpResponse(status=codes.unprocessable_entity)
-
-        instance = request.instance
-        queryset = self.get_queryset(request)
-
-        try:
-            apply_operations(instance, request.data, queryset=queryset)
-            instance.save()
-        except ValueError:
-            return HttpResponse(status=codes.unprocessable_entity)
-
-        return HttpResponse(status=codes.no_content)
-
     def put(self, request, pk):
         form = self.form_class(request.data, instance=request.instance)
 
         if form.is_valid():
-            form.save()
+            instance = form.save(commit=False)
+
+            if 'operations' in request.data and request.data['operations']:
+                queryset = self.get_queryset(request)
+                try:
+                    apply_operations(instance, request.data['operations'],
+                                     queryset=queryset)
+                except ValueError:
+                    return HttpResponse(status=codes.unprocessable_entity)
+            instance.save()
+
             return HttpResponse(status=codes.no_content)
 
         return HttpResponse(dict(form.errors),

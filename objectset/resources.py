@@ -16,19 +16,62 @@ from .models import ObjectSet, SetObject
 from .forms import objectset_form_factory
 
 
-SET_OPERATIONS = {
-    'and': '__and__',
-    'or': '__or__',
-    'xor': '__xor__',
-    'sub': '__sub__',
-}
-
-INPLACE_SET_OPERATIONS = {
+SET_OPERATORS = {
     'and': '__iand__',
     'or': '__ior__',
     'xor': '__ixor__',
     'sub': '__isub__',
 }
+
+
+def apply_operations(instance, operations, queryset=None):
+    """Applies a series of operations to an existing instance.
+
+    The operation syntax is:
+
+        {
+            'set': <id> | [...],
+            'operator': 'and' | 'or' | 'xor' | 'sub',
+        }
+
+    where `set` can be the primary key of an existing set or a list of
+    object primary keys to be treated as a temporary set for the operation.
+    `operator` is one of the supported set operators.
+    """
+
+    # Derive a queryset of available sets
+    if queryset is None:
+        queryset = instance.__class__.objects.all()
+
+    for operation in operations:
+        operand = operation.get('set')
+        operator = operation.get('operator')
+
+        # Ensure this is a valid operation
+        if operator not in SET_OPERATORS:
+            raise ValueError('Invalid set operation')
+
+        if operand is None:
+            raise ValueError('Set operand cannot be empty')
+
+        # Treat operand as set id
+        elif isinstance(operand, int):
+            try:
+                operand = queryset.get(pk=operand)
+            except queryset.model.DoesNotExist:
+                raise ValueError('Set operand does not exist')
+
+        # Treat operand as list of object ids
+        elif isinstance(operand, (list, tuple)) and operand:
+            operand = queryset.model(operand)
+
+        else:
+            raise ValueError('Unknown operand type')
+
+        # Apply operation
+        getattr(instance, SET_OPERATORS[operator])(operand)
+
+    return instance
 
 
 def set_objects_prehook(queryset):
@@ -132,6 +175,20 @@ class SetResource(BaseSetResource):
         params = self.get_params(request)
         template = self.get_serialize_template(request, **params)
         return serialize(request.instance, **template)
+
+    def post(self, request, pk):
+        # Requires at least one operation
+        if not request.data:
+            return HttpResponse(status=codes.unprocessable_entity)
+
+        instance = request.instance
+        queryset = self.get_queryset(request)
+        try:
+            apply_operations(instance, request.data, queryset=queryset)
+            instance.save()
+        except ValueError:
+            return HttpResponse(status=codes.unprocessable_entity)
+        return HttpResponse(status=codes.no_content)
 
     def put(self, request, pk):
         form = self.form_class(request.data, instance=request.instance)

@@ -57,7 +57,9 @@ class SetTestCase(TestCase):
 
     def test_repr(self):
         objs = [Record(pk=i) for i in xrange(1, 5)]
-        self.assertEqual(repr(SimpleRecordSet(objs)), 'SimpleRecordSet([<Record: 1>, <Record: 2>, <Record: 3>, <Record: 4>])')
+        self.assertEqual(repr(SimpleRecordSet(objs)),
+                         'SimpleRecordSet([<Record: 1>, <Record: 2>, '
+                         '<Record: 3>, <Record: 4>])')
 
     def test_and(self):
         s1 = SimpleRecordSet([Record(pk=i) for i in xrange(1, 5)], save=True)
@@ -332,7 +334,8 @@ class SetObjectSetTestCase(TestCase):
 
         s.bulk([Record(pk=i) for i in xrange(3)])
         self.assertEqual(s.count, 3)
-        self.assertEqual(s.replace([Record(pk=i) for i in xrange(2, 6)], delete=True), 4)
+        self.assertEqual(s.replace([Record(pk=i) for i in xrange(2, 6)],
+                                   delete=True), 4)
         self.assertEqual(s.count, 4)
 
         # Original ones removed
@@ -395,7 +398,10 @@ class SetFormTest(TestCase):
         form = CustomRecordSetForm(data={'objects': range(1, 5)})
         self.assertFalse(form.is_valid())
 
-        form = CustomRecordSetForm(data={'objects': range(1, 5), 'name': 'Foo'})
+        form = CustomRecordSetForm(data={
+            'objects': range(1, 5),
+            'name': 'Foo',
+        })
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data['name'], 'Foo')
 

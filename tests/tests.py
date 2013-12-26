@@ -1,4 +1,3 @@
-import time
 import json
 from django.test import TestCase
 from django.db import IntegrityError
@@ -239,30 +238,6 @@ class SetTestCase(TestCase):
         self.assertEqual(s.count, 0)
 
         self.assertEqual(s._set_objects().count(), 0)
-
-    def test_perf(self):
-        "Compares performance of bulk load vs. an update"
-        s = SimpleRecordSet()
-        s.save()
-
-        Record.objects.all().delete()
-
-        # Only test 100. SQLite limitation..
-        objs = [Record(pk=i) for i in xrange(100)]
-        Record.objects.bulk_create(objs)
-
-        t0 = time.time()
-        s.update(objs)
-        t1 = time.time() - t0
-
-        s._set_objects().delete()
-
-        t0 = time.time()
-        s.bulk(objs)
-        t2 = time.time() - t0
-
-        # 10-fold difference
-        self.assertTrue(t2 * 10 < t1)
 
     def test_iter(self):
         s = SimpleRecordSet()

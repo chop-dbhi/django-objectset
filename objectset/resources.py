@@ -32,7 +32,7 @@ INPLACE_SET_OPERATIONS = {
 
 
 class SetParametizer(Parametizer):
-    embed = BoolParam(default=True)
+    embed = BoolParam()
 
 
 class BaseSetResource(Resource):

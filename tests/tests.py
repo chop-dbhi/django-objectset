@@ -1,4 +1,5 @@
 import time
+import json
 from django.test import TestCase
 from django.db import IntegrityError
 from django.db.models.query import QuerySet, EmptyQuerySet
@@ -416,3 +417,75 @@ class SetFormTest(TestCase):
 
         self.assertEqual(s.count, 3)
         self.assertEqual(sorted(list([x.pk for x in s])), [6, 7, 8])
+
+
+class ResourcesTest(TestCase):
+    def test_get_sets(self):
+        response = self.client.get('/', HTTP_ACCEPT='application/json')
+        self.assertEqual(len(json.loads(response.content)), 0)
+
+        RecordSet([1, 2, 3], save=True)
+        response = self.client.get('/', HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+
+        self.assertEqual(len(data), 1)
+        self.assertFalse('objects' in data[0])
+
+        response = self.client.get('/?embed=1', HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+        self.assertEqual(len(data[0]['objects']), 3)
+
+    def test_post_sets(self):
+        response = self.client.post('/?embed=1',
+                                    json.dumps({'objects': [1, 2, 3]}),
+                                    content_type='application/json',
+                                    HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+        self.assertEqual(data['objects'], [{'id': 1}, {'id': 2}, {'id': 3}])
+
+        response = self.client.post('/?embed=1',
+                                    json.dumps({'objects': [1, 2, 3]}),
+                                    content_type='application/json',
+                                    HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+        self.assertEqual(data['objects'], [{'id': 1}, {'id': 2}, {'id': 3}])
+
+    def test_get_set(self):
+        RecordSet([1, 2, 3], save=True)
+        response = self.client.get('/1/?embed=1',
+                                   HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+        self.assertEqual(len(data['objects']), 3)
+
+    def test_put_set(self):
+        s = RecordSet([1, 2, 3], save=True)
+        self.client.put('/1/', json.dumps({'objects': [4, 5, 6]}),
+                        content_type='application/json',
+                        HTTP_ACCEPT='application/json')
+
+        self.assertEqual([o.pk for o in s], [4, 5, 6])
+
+    def test_post_set(self):
+        s = RecordSet([1, 2, 3], save=True)
+        s2 = RecordSet([4, 5, 6], save=True)
+        ops = [
+            {'set': s2.pk, 'operator': 'or'},
+            {'set': [2, 4, 6], 'operator': 'sub'},
+        ]
+        self.client.post('/1/', json.dumps(ops),
+                         content_type='application/json',
+                         HTTP_ACCEPT='application/json')
+
+        self.assertEqual([o.pk for o in s], [1, 3, 5])
+
+    def test_delete_set(self):
+        RecordSet([1, 2, 3], save=True)
+        self.client.delete('/1/', HTTP_ACCEPT='application/json')
+        self.assertEqual(RecordSet.objects.count(), 0)
+
+    def test_get_set_objects(self):
+        RecordSet([1, 2, 3], save=True)
+        response = self.client.get('/1/objects/',
+                                   HTTP_ACCEPT='application/json')
+        data = json.loads(response.content)
+        self.assertEqual([o['id'] for o in data], [1, 2, 3])

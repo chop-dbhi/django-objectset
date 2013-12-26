@@ -94,6 +94,9 @@ def set_links_posthook(instance, attrs, request):
             'href': uri(reverse('{0}set'.format(prefix),
                         kwargs={'pk': instance.pk}))
         },
+        'parent': {
+            'href': uri(reverse('{0}sets'.format(prefix)))
+        },
         'objects': {
             'href': uri(reverse('{0}objects'.format(prefix),
                         kwargs={'pk': instance.pk})),

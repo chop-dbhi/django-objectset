@@ -48,15 +48,37 @@ class BaseSetResource(Resource):
 
     def get_serialize_template(self, request, **kwargs):
         "Prepare the serialize template"
-        template = self.template or {}
-        relation = self.model._set_object_rel
+        # TODO
+        instance = self.model()
+        relation = instance._set_object_rel
 
-        if kwargs.get('embed', False):
-            template.setdefault('exclude', [relation])
-        elif self.object_template:
-            template.setdefault('related', {})
-            if relation not in template['related']:
-                template['related'][relation] = self.object_template
+        if self.object_template:
+            object_template = self.object_template
+        else:
+            object_template = {'fields': [':pk']}
+
+        if self.template:
+            template = self.template
+        else:
+            # Use the generic 'objects' key for the target relation.
+            # This makes it simpler to consume by clients
+            template = {
+                'fields': [':local', 'objects'],
+                'exclude': [relation],
+                'aliases': {
+                    'objects': relation,
+                },
+                'related': {
+                    relation: object_template,
+                }
+            }
+
+            # If it is requested to not be embedded, exclude the target
+            # relation and the 'objects' alias from the template
+            if not kwargs.get('embed', False):
+                template['exclude'].append('objects')
+
+        return template
 
     def get_queryset(self, request):
         return self.model.objects.all()

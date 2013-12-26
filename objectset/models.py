@@ -88,7 +88,8 @@ class ObjectSet(models.Model):
     def __xor__(self, other):
         "Performs an exclusive union of this set and `other`."
         excluded = models.Q(pk__in=(other._objects & self._objects))
-        return self.__class__((other._objects | self._objects).exclude(excluded))
+        return self.__class__((other._objects | self._objects)
+                              .exclude(excluded))
 
     def __sub__(self, other):
         "Removes objects from this set that are in `other`."
@@ -125,12 +126,15 @@ class ObjectSet(models.Model):
             m2m_fields = self._meta.many_to_many
             if not m2m_fields:
                 raise ImproperlyConfigured('At least one many-to-many '
-                    'relationship must exist on object sets.')
+                                           'relationship must exist on object '
+                                           'sets.')
             if len(m2m_fields) != 1:
                 raise ImproperlyConfigured('No explicit set object relation '
-                    'has been defined, but more than one many-to-many '
-                    'relationship exists on this object set. Define '
-                    '`set_object_rel` name on the class.')
+                                           'has been defined, but more than '
+                                           'one many-to-many relationship '
+                                           'exists on this object set. Define '
+                                           '`set_object_rel` name on the '
+                                           'class.')
             self.set_object_rel = m2m_fields[0].name
         return self.set_object_rel
 
@@ -146,10 +150,12 @@ class ObjectSet(models.Model):
                 if field is None:
                     field = f
                     continue
-                raise ImproperlyConfigured('No explicit through model set field '
-                    'relation has been defined, but more than one exists.')
+                raise ImproperlyConfigured('No explicit through model set '
+                                           'field relation has been defined, '
+                                           'but more than one exists.')
         if field is None:
-            raise ImproperlyConfigured('No through model set field relation was found.')
+            raise ImproperlyConfigured('No through model set field relation '
+                                       'was found.')
         return field.name
 
     @cached_property
@@ -160,14 +166,17 @@ class ObjectSet(models.Model):
 
         field = None
         for f in through._meta.fields:
-            if isinstance(f, models.ForeignKey) and f.rel.to is self._object_class:
+            if isinstance(f, models.ForeignKey) and \
+                    f.rel.to is self._object_class:
                 if field is None:
                     field = f
                     continue
-                raise ImproperlyConfigured('No explicit through model object field '
-                    'relation has been defined, but more than one exists.')
+                raise ImproperlyConfigured('No explicit through model object '
+                                           'field relation has been defined, '
+                                           'but more than one exists.')
         if field is None:
-            raise ImproperlyConfigured('No through model object field relation was found.')
+            raise ImproperlyConfigured('No through model object field '
+                                       'relation was found.')
         return field.name
 
     @cached_property
@@ -225,8 +234,8 @@ class ObjectSet(models.Model):
 
     def _check_type(self, obj):
         if not isinstance(obj, self._object_class):
-            raise TypeError(u"Only objects of type '{0}' can be added to the "
-                "set".format(self._object_class.__name__))
+            raise TypeError("Only objects of type '{0}' can be added to the "
+                            "set".format(self._object_class.__name__))
 
     def _add(self, obj, added):
         """Check for an existing object that has been removed and mark
@@ -260,7 +269,8 @@ class ObjectSet(models.Model):
         super(ObjectSet, self).save(*args, **kwargs)
 
         # Handle pending data after the set has been saved
-        if self._pending is not None and not isinstance(self._pending, EmptyQuerySet):
+        if self._pending is not None \
+                and not isinstance(self._pending, EmptyQuerySet):
             pending = list(self._pending.only('pk'))
             self._pending = self._object_class.objects.none()
             if new and BULK_SUPPORTED:

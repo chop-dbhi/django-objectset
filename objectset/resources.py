@@ -123,7 +123,7 @@ class SetsResource(BaseSetResource):
 
 class SetResource(BaseSetResource):
     def is_not_found(self, request, response, pk):
-        instance = self.get_object(pk=pk)
+        instance = self.get_object(request, pk=pk)
         if instance is None:
             return True
         request.instance = instance

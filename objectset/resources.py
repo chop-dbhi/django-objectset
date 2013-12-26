@@ -12,7 +12,7 @@ from restlib2.resources import Resource
 from restlib2.http import codes
 from restlib2.params import Parametizer, BoolParam
 from preserialize.serialize import serialize
-from .models import ObjectSet
+from .models import ObjectSet, SetObject
 from .forms import objectset_form_factory
 
 
@@ -29,6 +29,13 @@ INPLACE_SET_OPERATIONS = {
     'xor': '__ixor__',
     'sub': '__isub__',
 }
+
+
+def set_objects_prehook(queryset):
+    "Prehook for set objects to exclude tracked deleted objects."
+    if issubclass(queryset.model, SetObject):
+        queryset = queryset.exclude(removed=True)
+    return queryset
 
 
 class SetParametizer(Parametizer):
@@ -58,7 +65,10 @@ class BaseSetResource(Resource):
         if self.object_template:
             object_template = self.object_template
         else:
-            object_template = {'fields': [':pk']}
+            object_template = {
+                'fields': [':local'],
+                'prehook': set_objects_prehook,
+            }
 
         if self.template:
             template = self.template

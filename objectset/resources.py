@@ -12,6 +12,9 @@ from restlib2.resources import Resource
 from restlib2.http import codes
 from restlib2.params import Parametizer, BoolParam
 from preserialize.serialize import serialize
+from .models import ObjectSet
+from .forms import objectset_form_factory
+
 
 SET_OPERATIONS = {
     'and': '__and__',
@@ -140,22 +143,67 @@ class SetOperationsResource(BaseSetResource):
         pass
 
 
-def get_url_patterns(resources):
+def get_url_patterns(Model, resources=None, prefix=None):
     """Returns urlpatterns for the defined resources.
 
     `resources` is a dict corresponding to each resource:
 
         - `sets` => SetsResource
         - `set` => SetResource
-        - `operations` => SetOperatiosnResource
+        - `operations` => SetOperationsResource
         - `objects` => SetObjectsResource
 
     """
+    # A few checks to keep things sane..
+    if not issubclass(Model, ObjectSet):
+        raise TypeError('{0} must subclass ObjectSet'.format(Model.__name__))
+
+    if not resources:
+        resources = {}
+
+    default_form_class = objectset_form_factory(Model)
+
+    if 'sets' not in resources:
+        class DefaultSetsResource(SetsResource):
+            model = Model
+            form_class = default_form_class
+
+        resources['sets'] = DefaultSetsResource
+
+    if 'set' not in resources:
+        class DefaultSetResource(SetResource):
+            model = Model
+            form_class = default_form_class
+
+        resources['set'] = DefaultSetResource
+
+    if 'objects' not in resources:
+        class DefaultSetObjectsResource(SetObjectsResource):
+            model = Model
+            form_class = default_form_class
+
+        resources['objects'] = DefaultSetObjectsResource
+
+    if 'operations' not in resources:
+        class DefaultSetOperationsResource(SetOperationsResource):
+            model = Model
+            form_class = default_form_class
+
+        resources['operations'] = DefaultSetOperationsResource
+
+    # Define a prefix for the url names to prevent conflicts
+    if not prefix:
+        prefix = '{0}-'.format(Model.__name__.lower())
+
     return patterns(
         '',
-        url(r'^$', resources['sets'](), name='sets'),
-        url(r'^(?P<pk>\d+)/$', resources['set'](), name='set'),
-        url(r'^(?P<pk>\d+)/objects/$', resources['objects'](), name='objects'),
+        url(r'^$', resources['sets'](),
+            name='{0}sets'.format(prefix)),
+        url(r'^(?P<pk>\d+)/$', resources['set'](),
+            name='{0}set'.format(prefix)),
+        url(r'^(?P<pk>\d+)/objects/$', resources['objects'](),
+            name='{0}objects'.format(prefix)),
         url(r'^(?P<pk>\d+)/(?:(and|or|xor|sub)/(\d+)/)+/$',
-            resources['operations'](), name='operations'),
+            resources['operations'](),
+            name='{0}operations'.format(prefix)),
     )

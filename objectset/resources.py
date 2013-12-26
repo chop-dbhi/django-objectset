@@ -10,7 +10,7 @@ from django.conf.urls import patterns, url
 from django.http import HttpResponse
 from restlib2.resources import Resource
 from restlib2.http import codes
-from restlib2.params import Parametizer, param_cleaners
+from restlib2.params import Parametizer, BoolParam
 from preserialize.serialize import serialize
 
 SET_OPERATIONS = {
@@ -29,10 +29,7 @@ INPLACE_SET_OPERATIONS = {
 
 
 class SetParametizer(Parametizer):
-    embed = False
-
-    def clean_embed(self, value):
-        return param_cleaners.clean_bool(value)
+    embed = BoolParam(default=True)
 
 
 class BaseSetResource(Resource):

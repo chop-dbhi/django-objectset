@@ -12,4 +12,7 @@ INSTALLED_APPS = (
 )
 
 
+ROOT_URLCONF = 'tests.urls'
+
+
 SECRET_KEY = 'abc123'

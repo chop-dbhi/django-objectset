@@ -1,5 +1,6 @@
 from functools import wraps
 
+
 def cached_property(func):
     @wraps(func)
     def inner(self, *args, **kwargs):

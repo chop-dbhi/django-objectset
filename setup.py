@@ -2,11 +2,23 @@ from setuptools import setup, find_packages
 
 kwargs = {
     # Packages
-    'packages': find_packages(exclude=['tests', '*.tests', '*.tests.*', 'tests.*']),
+    'packages': find_packages(exclude=[
+        'tests',
+        '*.tests',
+        '*.tests.*',
+        'tests.*',
+    ]),
     'include_package_data': True,
 
     # Dependencies
-    'install_requires': ['django'],
+    'install_requires': [
+        'django>=1.4',
+    ],
+
+    'tests_require': [
+        'restlib>=0.3.9,<0.4',
+        'django-preserialize>=1.0.4,<1.1',
+    ],
 
     'test_suite': 'test_suite',
 
@@ -18,7 +30,7 @@ kwargs = {
     'description': 'ObjectSet abstract class for set-like models',
     'license': 'BSD',
     'keywords': 'object set',
-    'url': 'http://cbmi.github.com/django-objectset/',
+    'url': 'http://cbmi.github.io/django-objectset/',
     'classifiers': [
         'Development Status :: 5 - Production/Stable',
         'License :: OSI Approved :: BSD License',

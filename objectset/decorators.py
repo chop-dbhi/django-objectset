@@ -1,11 +1,13 @@
-from functools import wraps
+class cached_property(object):
+    """Decorator that converts a method with a single self argument into a
+    property cached on the instance.
+    """
+    def __init__(self, func):
+        self.func = func
 
-
-def cached_property(func):
-    @wraps(func)
-    def inner(self, *args, **kwargs):
-        key = '_{0}_cache'.format(func.__name__)
-        if not hasattr(self, key):
-            setattr(self, key, func(self, *args, **kwargs))
-        return getattr(self, key)
-    return property(inner)
+    def __get__(self, instance, type=None):
+        if instance is None:
+            return self
+        result = self.func(instance)
+        instance.__dict__[self.func.__name__] = result
+        return result

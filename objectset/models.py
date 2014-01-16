@@ -33,16 +33,23 @@ class ObjectSetManager(models.Manager):
 
 
 class ObjectSet(models.Model):
-    """Enables persisting a materialized set of IDs for some object type.
+    """Encapsulates a set of objects of a particular type and provides
+    common set operations such as union, intersection, and difference.
+
     `ObjectSet` must be subclassed to add the many-to-many relationship
     to the _object_ of interest.
+
+    The method docstrings below will use the example of a Team and Players
+    where `Team` is the set, `Player` is the object, and `TeamPlayer` is
+    the many-to-many table.
+
+        Team <- TeamPlayer -> Player
     """
     # Stored count of the set size. Since most operations are incremental
     # and are applied with objects in memory, this is a more efficient
     # way to keep track of the count as suppose to performing a database
     # count each time.
     count = models.PositiveIntegerField(default=0, editable=False)
-
     created = models.DateTimeField(default=datetime.now, editable=False)
     modified = models.DateTimeField(default=datetime.now, editable=False)
 
@@ -90,6 +97,7 @@ class ObjectSet(models.Model):
         "Returns the length (size) of this set."
         return self.count
 
+    # TODO: this prevents the set  from ever being falsy..
     def __nonzero__(self):
         return True
 
@@ -147,14 +155,20 @@ class ObjectSet(models.Model):
 
     @cached_property
     def _set_object_rel(self):
-        "Return the set object class which is the through model for the M2M."
+        """Return the relation name of the many-to-many model between this
+        set class and the object model. This can be specified explicitly via
+        the `set_object_rel` property or it will be detected if there is only
+        one many-to-many on this class, e.g. `Team.team_players`
+        """
         # Not defined, so it is assumed to only have one M2M field
         if not hasattr(self, 'set_object_rel'):
             m2m_fields = self._meta.many_to_many
+
             if not m2m_fields:
                 raise ImproperlyConfigured('At least one many-to-many '
                                            'relationship must exist on object '
                                            'sets.')
+
             if len(m2m_fields) != 1:
                 raise ImproperlyConfigured('No explicit set object relation '
                                            'has been defined, but more than '
@@ -162,12 +176,18 @@ class ObjectSet(models.Model):
                                            'exists on this object set. Define '
                                            '`set_object_rel` name on the '
                                            'class.')
+
             self.set_object_rel = m2m_fields[0].name
+
         return self.set_object_rel
 
     @cached_property
     def _through_set_rel(self):
+        """Returns the name of the relation on the through model that goes to
+        the set, e.g. `TeamPlayer.team`
+        """
         through = self._set_object_class
+
         if hasattr(through, 'object_set_rel'):
             return through.object_set_rel
 
@@ -178,6 +198,7 @@ class ObjectSet(models.Model):
                 if field is None:
                     field = f
                     continue
+
                 raise ImproperlyConfigured('No explicit through model set '
                                            'field relation has been defined, '
                                            'but more than one exists.')
@@ -190,7 +211,11 @@ class ObjectSet(models.Model):
 
     @cached_property
     def _through_object_rel(self):
+        """Returns the name of the relation on the through model that goes to
+        the object, e.g. TeamPlayer.player
+        """
         through = self._set_object_class
+
         if hasattr(through, 'set_object_rel'):
             return through.object_set_rel
 
@@ -215,44 +240,56 @@ class ObjectSet(models.Model):
 
     @cached_property
     def _set_object_class(self):
+        "The class of the through model, e.g. TeamPlayer"
         return getattr(self.__class__, self._set_object_rel).through
 
     @cached_property
     def _object_class(self):
-        "The class of the object this set contains."
+        "The class of the object model, e.g. Player"
         return getattr(self.__class__, self._set_object_rel).field.rel.to
 
     @cached_property
     def _set_object_class_supported(self):
-        "Checks if the set object class supports the extended features."
+        """Returns true if the set object class subclasses SetObject for
+        extended features.
+        """
         return issubclass(self._set_object_class, SetObject)
 
     @property
     def _objects(self):
+        "Returns a QuerySet of objects in this set including pending ones."
         if not self.pk:
             return self._pending
+
         objects = self._object_class.objects.all()
         pks = self._set_objects(include_removed=False)\
             .values_list('{0}__pk'.format(self._through_object_rel))
+
         return objects.filter(pk__in=pks) | self._pending
 
     def _set_objects(self, include_removed=True):
-        "Returns a queryset of set objects."
+        """Returns a queryset of set objects. If `include_removed` is true and
+        is supported by the through model, objects marked as 'removed' will
+        not be included in the set.
+        """
         kwargs = {self._through_set_rel: self}
         if not include_removed and self._set_object_class_supported:
             kwargs['removed'] = False
         return self._set_object_class.objects.filter(**kwargs)
 
     def _get_set_object(self, obj, include_removed=True):
-        "Gets a set object."
+        """Attempts to return an intermediate set object or None for the
+        specified object.
+        """
         kwargs = {self._through_object_rel: obj}
+
         try:
             return self._set_objects(include_removed).get(**kwargs)
         except self._set_object_class.DoesNotExist:
             pass
 
     def _set_object_exists(self, obj, include_removed=True):
-        "Checks for the existence of a set object"
+        "Returns a boolean if the object is contained in this set."
         kwargs = {self._through_object_rel: obj}
         return self._set_objects(include_removed).filter(**kwargs).exists()
 
@@ -293,12 +330,14 @@ class ObjectSet(models.Model):
                 _obj.added = added
             else:
                 _obj = self._make_set_object(obj, added=added)
+
         _obj.save()
+
         return True
 
     @transaction.commit_on_success
     def save(self, *args, **kwargs):
-        # If this is new, use bulk
+        # If this is new, use bulk if supported
         new = self.pk is None
         super(ObjectSet, self).save(*args, **kwargs)
 

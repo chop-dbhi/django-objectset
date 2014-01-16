@@ -247,7 +247,7 @@ class SetObjectsResource(BaseSetResource):
         return {'fields': [':local']}
 
     def get(self, request, pk):
-        queryset = request.instance._objects
+        queryset = request.instance.objects
         params = self.get_params(request)
         template = self.get_serialize_template(request, **params)
         return serialize(queryset, **template)

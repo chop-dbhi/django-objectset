@@ -2,11 +2,34 @@ import django
 from datetime import datetime
 from django.db import models, transaction
 from django.db.models.query import QuerySet, EmptyQuerySet
+from django.db.models.manager import ManagerDescriptor
 from django.core.exceptions import ImproperlyConfigured
 from .exceptions import ObjectSetError
 from .decorators import cached_property
 
 BULK_SUPPORTED = django.VERSION >= (1, 4)
+
+
+class ObjectSetManagerDescriptor(ManagerDescriptor):
+    """Manager descriptor customized to allow model instances to access the
+    `objects` property. This returns a QuerySet of the objects the set
+    contains.
+    """
+    def __init__(self, manager):
+        self.manager = manager
+
+    def __get__(self, instance, type=None):
+        if instance is not None:
+            return instance._objects
+        return super(ObjectSetManagerDescriptor, self).__get__(instance, type)
+
+
+class ObjectSetManager(models.Manager):
+    "Manager for the `ObjectSet` model."
+    def contribute_to_class(self, model, name):
+        "Override to use custom manager descriptor."
+        super(ObjectSetManager, self).contribute_to_class(model, name)
+        setattr(model, name, ObjectSetManagerDescriptor(self))
 
 
 class ObjectSet(models.Model):
@@ -22,6 +45,10 @@ class ObjectSet(models.Model):
 
     created = models.DateTimeField(default=datetime.now, editable=False)
     modified = models.DateTimeField(default=datetime.now, editable=False)
+
+    # Custom manager to give instance-level access to `objects` which returns
+    # the objects this set contains. This proxies to `_objects`
+    objects = ObjectSetManager()
 
     class Meta(object):
         abstract = True
@@ -67,11 +94,11 @@ class ObjectSet(models.Model):
         return True
 
     def __repr__(self):
-        return '{0}({1})'.format(self.__class__.__name__, repr(self._objects))
+        return '{0}({1})'.format(self.__class__.__name__, repr(self.objects))
 
     def __iter__(self):
         "Iterates over the objects in the set."
-        return iter(self._objects)
+        return iter(self.objects)
 
     def __contains__(self, obj):
         "Returns True if `obj` is in this set."
@@ -79,43 +106,43 @@ class ObjectSet(models.Model):
 
     def __and__(self, other):
         "Performs an intersection of this set and `other`."
-        return self.__class__(other._objects & self._objects)
+        return self.__class__(other.objects & self.objects)
 
     def __or__(self, other):
         "Performs an union of this set and `other`."
-        return self.__class__(other._objects | self._objects)
+        return self.__class__(other.objects | self.objects)
 
     def __xor__(self, other):
         "Performs an exclusive union of this set and `other`."
-        excluded = models.Q(pk__in=(other._objects & self._objects))
-        return self.__class__((other._objects | self._objects)
+        excluded = models.Q(pk__in=(other.objects & self.objects))
+        return self.__class__((other.objects | self.objects)
                               .exclude(excluded))
 
     def __sub__(self, other):
         "Removes objects from this set that are in `other`."
-        excluded = models.Q(pk__in=other._objects)
-        return self.__class__(self._objects.exclude(excluded))
+        excluded = models.Q(pk__in=other.objects)
+        return self.__class__(self.objects.exclude(excluded))
 
     def __iand__(self, other):
         "Performs an inplace intersection of this set and `other`."
-        self._pending = other._objects & self._objects
+        self._pending = other.objects & self.objects
         return self
 
     def __ior__(self, other):
         "Performs and inplace union of this set and `other`."
-        self._pending = other._objects | self._objects
+        self._pending = other.objects | self.objects
         return self
 
     def __ixor__(self, other):
         "Performs an inplace exclusive union of this set and `other`."
-        excluded = models.Q(pk__in=(other._objects & self._objects))
-        self._pending = (other._objects | self._objects).exclude(excluded)
+        excluded = models.Q(pk__in=(other.objects & self.objects))
+        self._pending = (other.objects | self.objects).exclude(excluded)
         return self
 
     def __isub__(self, other):
         "Inplace removal of objects from this set that are in `other`."
-        excluded = models.Q(pk__in=other._objects)
-        self._pending = self._objects.exclude(excluded)
+        excluded = models.Q(pk__in=other.objects)
+        self._pending = self.objects.exclude(excluded)
         return self
 
     @cached_property

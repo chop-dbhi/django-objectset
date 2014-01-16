@@ -2,9 +2,11 @@ import json
 from django.test import TestCase
 from django.db import IntegrityError
 from django.db.models.query import QuerySet, EmptyQuerySet
+from django.contrib.auth.models import User
 from objectset.models import ObjectSetError
 from objectset.forms import objectset_form_factory
-from .models import Record, RecordSet, RecordSetObject, SimpleRecordSet
+from .models import Record, RecordSet, RecordSetObject, SimpleRecordSet, \
+    ProtectedRecordSet
 
 
 class SetTestCase(TestCase):
@@ -481,3 +483,46 @@ class ResourcesTest(TestCase):
                                    HTTP_ACCEPT='application/json')
         data = json.loads(response.content)
         self.assertEqual([o['id'] for o in data], [1, 2, 3])
+
+
+class ProtectedResourcesTest(TestCase):
+    def test_user(self):
+        user = User.objects.create_user(username='test', password='test')
+        ProtectedRecordSet([1, 2, 3], user=user, save=True)
+
+        # Unauthenticated
+        response = self.client.get('/protected/',
+                                   HTTP_ACCEPT='application/json')
+        self.assertEqual(len(json.loads(response.content)), 0)
+
+        # Authenticate
+        self.client.login(username='test', password='test')
+
+        response = self.client.get('/protected/',
+                                   HTTP_ACCEPT='application/json')
+        self.assertEqual(len(json.loads(response.content)), 1)
+
+    def test_session(self):
+        # This session mumbo-jumbo is from:
+        #       https://code.djangoproject.com/ticket/10899
+        from django.conf import settings
+        from django.utils.importlib import import_module
+
+        engine = import_module(settings.SESSION_ENGINE)
+        store = engine.SessionStore()
+        store.save()  # we need to make load() work, or the cookie is worthless
+        session_key = store.session_key
+
+        ProtectedRecordSet([1, 2, 3], session_key=session_key, save=True)
+
+        # Unauthenticated
+        response = self.client.get('/protected/',
+                                   HTTP_ACCEPT='application/json')
+        self.assertEqual(len(json.loads(response.content)), 0)
+
+        # Authenticate
+        self.client.cookies[settings.SESSION_COOKIE_NAME] = session_key
+
+        response = self.client.get('/protected/',
+                                   HTTP_ACCEPT='application/json')
+        self.assertEqual(len(json.loads(response.content)), 1)

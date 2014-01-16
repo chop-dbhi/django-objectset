@@ -10,10 +10,12 @@ from functools import partial
 from django.conf.urls import patterns, url
 from django.http import HttpResponse
 from django.core.urlresolvers import reverse
+from django.db.models import FieldDoesNotExist
 from restlib2.resources import Resource
 from restlib2.http import codes
 from restlib2.params import Parametizer, BoolParam
 from preserialize.serialize import serialize
+from .decorators import cached_property
 from .models import ObjectSet
 from .forms import objectset_form_factory
 
@@ -95,6 +97,45 @@ class BaseSetResource(Resource):
 
     url_reverse_names = None
 
+    user_support = None
+
+    session_support = None
+
+    @cached_property
+    def has_user_support(self):
+        if self.user_support is not False:
+            try:
+                field = self.model._meta.get_field_by_name('user')
+            except FieldDoesNotExist:
+                field = None
+
+            if field:
+                return True
+            elif self.user_support is True:
+                raise ImproperlyConfigured('user_support is set to true, but '
+                                           '{0} does not have a `user` field'
+                                           .format(self.model.__name__))
+
+        return False
+
+    @cached_property
+    def has_session_support(self):
+        if self.session_support is not False:
+            try:
+                field = self.model._meta.get_field_by_name('session_key')
+            except FieldDoesNotExist:
+                field = None
+
+            if field:
+                return True
+
+            if self.session_support is True:
+                raise ImproperlyConfigured('session_support set to true, but '
+                                           '{0} does not have a `session_key` '
+                                           'field'.format(self.model.__name__))
+
+        return False
+
     def set_links_posthook(self, instance, attrs, request):
         uri = request.build_absolute_uri
 
@@ -158,7 +199,24 @@ class BaseSetResource(Resource):
         return template
 
     def get_queryset(self, request):
-        return self.model.objects.all()
+        # Assume unprotected access if neither users nor session are supported
+        if not self.has_user_support and not self.has_session_support:
+            return self.model.objects.all()
+
+        kwargs = {}
+
+        if self.has_user_support and getattr(request, 'user', None) \
+                and request.user.is_authenticated():
+            kwargs['user'] = request.user
+        elif self.has_session_support and request.session.session_key:
+            kwargs['session_key'] = request.session.session_key
+        else:
+            # The only case where kwargs is empty is for non-authenticated
+            # cookieless agents.. e.g. bots, most non-browser clients since
+            # no session exists yet for the agent.
+            return self.model.objects.none()
+
+        return self.model.objects.filter(**kwargs)
 
     def get_object(self, request, **kwargs):
         try:

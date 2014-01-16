@@ -111,7 +111,8 @@ class BaseSetResource(Resource):
 
             if field:
                 return True
-            elif self.user_support is True:
+
+            if self.user_support:
                 raise ImproperlyConfigured('user_support is set to true, but '
                                            '{0} does not have a `user` field'
                                            .format(self.model.__name__))
@@ -129,7 +130,7 @@ class BaseSetResource(Resource):
             if field:
                 return True
 
-            if self.session_support is True:
+            if self.session_support:
                 raise ImproperlyConfigured('session_support set to true, but '
                                            '{0} does not have a `session_key` '
                                            'field'.format(self.model.__name__))

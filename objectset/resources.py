@@ -14,7 +14,7 @@ from restlib2.resources import Resource
 from restlib2.http import codes
 from restlib2.params import Parametizer, BoolParam
 from preserialize.serialize import serialize
-from .models import ObjectSet, SetObject
+from .models import ObjectSet
 from .forms import objectset_form_factory
 
 
@@ -76,35 +76,6 @@ def apply_operations(instance, operations, queryset=None):
     return instance
 
 
-def set_objects_prehook(queryset):
-    "Prehook for set objects to exclude tracked deleted objects."
-    if issubclass(queryset.model, SetObject):
-        queryset = queryset.exclude(removed=True)
-    return queryset
-
-
-def set_links_posthook(instance, attrs, request):
-    uri = request.build_absolute_uri
-    # This prefix is intended to be shared across resources for the same
-    # set type
-    prefix = '{0}-'.format(instance.__class__.__name__.lower())
-
-    attrs['_links'] = {
-        'self': {
-            'href': uri(reverse('{0}set'.format(prefix),
-                        kwargs={'pk': instance.pk}))
-        },
-        'parent': {
-            'href': uri(reverse('{0}sets'.format(prefix)))
-        },
-        'objects': {
-            'href': uri(reverse('{0}objects'.format(prefix),
-                        kwargs={'pk': instance.pk})),
-        },
-    }
-    return attrs
-
-
 class SetParametizer(Parametizer):
     embed = BoolParam()
 
@@ -120,21 +91,47 @@ class BaseSetResource(Resource):
 
     form_class = None
 
+    url_names = None
+
+    url_reverse_names = None
+
+    def set_links_posthook(self, instance, attrs, request):
+        uri = request.build_absolute_uri
+
+        attrs['_links'] = {
+            'self': {
+                'href': uri(reverse(self.url_reverse_names['set'],
+                            kwargs={'pk': instance.pk}))
+            },
+            'parent': {
+                'href': uri(reverse(self.url_reverse_names['sets']))
+            },
+            'objects': {
+                'href': uri(reverse(self.url_reverse_names['objects'],
+                            kwargs={'pk': instance.pk})),
+            },
+        }
+        return attrs
+
     def get_params(self, request):
         return self.parametizer().clean(request.GET)
+
+    def get_serialize_object_template(self, request, **kwargs):
+        "Prepare the object serialize template."
+        if self.object_template:
+            object_template = self.object_template
+        else:
+            object_template = {
+                'fields': [':local'],
+            }
+        return object_template
 
     def get_serialize_template(self, request, **kwargs):
         "Prepare the serialize template"
         instance = self.model()
         relation = instance._set_object_rel
 
-        if self.object_template:
-            object_template = self.object_template
-        else:
-            object_template = {
-                'fields': [':local'],
-                'prehook': set_objects_prehook,
-            }
+        object_template = self.get_serialize_object_template(request, **kwargs)
 
         if self.template:
             template = self.template
@@ -144,7 +141,7 @@ class BaseSetResource(Resource):
             template = {
                 'fields': [':local', 'objects'],
                 'exclude': [relation],
-                'posthook': partial(set_links_posthook, request=request),
+                'posthook': partial(self.set_links_posthook, request=request),
                 'aliases': {
                     'objects': relation,
                 },
@@ -243,25 +240,27 @@ class SetObjectsResource(BaseSetResource):
             return True
         request.instance = instance
 
-    def get_serialize_template(self, request, **kwargs):
-        return {'fields': [':local']}
-
     def get(self, request, pk):
         queryset = request.instance.objects
         params = self.get_params(request)
-        template = self.get_serialize_template(request, **params)
+        template = self.get_serialize_object_template(request, **params)
         return serialize(queryset, **template)
 
 
-def get_url_patterns(Model, resources=None):
+def get_url_patterns(Model, resources=None, prefix=''):
     """Returns urlpatterns for the defined resources.
 
     `resources` is a dict corresponding to each resource:
 
+        - `base` => BaseSetResource
         - `sets` => SetsResource
         - `set` => SetResource
         - `objects` => SetObjectsResource
 
+    If only the `base` is provided, the three other classes will be defined
+    using the base class.
+
+    `prefix` will be prepended to the URL paths.
     """
     # A few checks to keep things sane..
     if not issubclass(Model, ObjectSet):
@@ -270,37 +269,60 @@ def get_url_patterns(Model, resources=None):
     if not resources:
         resources = {}
 
-    default_form_class = objectset_form_factory(Model)
+    # Define missing classes
+    if 'base' not in resources:
+        model_name = Model.__name__.lower()
+
+        url_names = {
+            'set': model_name,
+            'sets': model_name,
+            'objects': '{0}-objects'.format(model_name),
+        }
+
+        base_class = type('BaseSetResource', (BaseSetResource,), {
+            'model': Model,
+            'form_class': objectset_form_factory(Model),
+            'url_names': url_names,
+            'url_reverse_names': url_names.copy(),
+        })
+
+        resources['base'] = base_class
 
     if 'sets' not in resources:
-        class DefaultSetsResource(SetsResource):
-            model = Model
-            form_class = default_form_class
-
-        resources['sets'] = DefaultSetsResource
+        bases = (resources['base'], SetsResource)
+        resources['sets'] = type('SetsResource', bases, {})
 
     if 'set' not in resources:
-        class DefaultSetResource(SetResource):
-            model = Model
-            form_class = default_form_class
-
-        resources['set'] = DefaultSetResource
+        bases = (resources['base'], SetResource)
+        resources['set'] = type('SetResource', bases, {})
 
     if 'objects' not in resources:
-        class DefaultSetObjectsResource(SetObjectsResource):
-            model = Model
-            form_class = default_form_class
+        bases = (resources['base'], SetObjectsResource)
+        resources['objects'] = type('SetObjectsResource', bases, {})
 
-        resources['objects'] = DefaultSetObjectsResource
+    url_names = getattr(resources['base'], 'url_names', None)
+    url_reverse_names = getattr(resources['base'], 'url_reverse_names', None)
 
-    prefix = '{0}-'.format(Model.__name__.lower())
+    # If url_names are not defined, assume the url_reverse_names can be used.
+    # url_reverse_names may be different if the urls are namespaced.
+    if not url_names:
+        if not url_reverse_names:
+            raise AttributeError('url_names or url_reverse_names must be '
+                                 'defined on the BaseSetResource class')
+        url_names = url_reverse_names
+
+    if prefix and not prefix.endswith('/'):
+        prefix = prefix + '/'
 
     return patterns(
         '',
-        url(r'^$', resources['sets'](),
-            name='{0}sets'.format(prefix)),
-        url(r'^(?P<pk>\d+)/$', resources['set'](),
-            name='{0}set'.format(prefix)),
-        url(r'^(?P<pk>\d+)/objects/$', resources['objects'](),
-            name='{0}objects'.format(prefix)),
+
+        url(r'^{0}$'.format(prefix),
+            resources['sets'](), name=url_names['sets']),
+
+        url(r'^{0}(?P<pk>\d+)/$'.format(prefix),
+            resources['set'](), name=url_names['set']),
+
+        url(r'^{0}(?P<pk>\d+)/objects/$'.format(prefix),
+            resources['objects'](), name=url_names['objects']),
     )

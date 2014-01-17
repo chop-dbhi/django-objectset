@@ -1,3 +1,4 @@
+import json
 from django.core.exceptions import ImproperlyConfigured
 try:
     import restlib2  # noqa
@@ -246,14 +247,16 @@ class SetsResource(BaseSetResource):
                                      queryset=queryset)
                 except ValueError:
                     return HttpResponse(status=codes.unprocessable_entity)
+
             instance.save()
             params = self.get_params(request)
             template = self.get_serialize_template(request, **params)
 
             return serialize(instance, **template)
 
-        return HttpResponse(dict(form.errors),
-                            status=codes.unprocessable_entity)
+        return HttpResponse(json.dumps(dict(form.errors)),
+                            status=codes.unprocessable_entity,
+                            content_type='application/json')
 
 
 class SetResource(BaseSetResource):
@@ -286,8 +289,9 @@ class SetResource(BaseSetResource):
 
             return HttpResponse(status=codes.no_content)
 
-        return HttpResponse(dict(form.errors),
-                            status=codes.unprocessable_entity)
+        return HttpResponse(json.dumps(dict(form.errors)),
+                            status=codes.unprocessable_entity,
+                            content_type='application/json')
 
     def delete(self, request, pk):
         request.instance.delete()

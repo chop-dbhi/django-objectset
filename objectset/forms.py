@@ -30,15 +30,28 @@ def objectset_form_factory(Model, queryset=None):
         objects = forms.ModelMultipleChoiceField(queryset, label=label,
                                                  required=False)
 
-        def save(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs):
+            self.request = kwargs.pop('request', None)
+            self.resource = kwargs.pop('resource', None)
+            super(form_class, self).__init__(*args, **kwargs)
+
+        def save(self, commit=True):
             objects = self.cleaned_data.get('objects')
+
+            instance = super(form_class, self).save(commit=False)
+
             # Django 1.4 nuance when working with an empty list. It is not
             # properly defined an empty query set
             if isinstance(objects, list) and not objects:
-                objects = self.instance.__class__.objects.none()
+                objects = instance.__class__.objects.none()
 
-            self.instance._pending = objects
-            return super(form_class, self).save(*args, **kwargs)
+            instance._pending = objects
+
+            if commit:
+                instance.save()
+                self.save_m2m()
+
+            return instance
 
         class Meta(object):
             model = Model

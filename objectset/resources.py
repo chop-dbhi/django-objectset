@@ -233,7 +233,8 @@ class SetsResource(BaseSetResource):
         return serialize(self.get_queryset(request), **template)
 
     def post(self, request):
-        form = self.form_class(request.data)
+        form = self.form_class(request.data, request=request,
+                               resource=self)
 
         if form.is_valid():
             instance = form.save(commit=False)
@@ -268,7 +269,8 @@ class SetResource(BaseSetResource):
         return serialize(request.instance, **template)
 
     def put(self, request, pk):
-        form = self.form_class(request.data, instance=request.instance)
+        form = self.form_class(request.data, instance=request.instance,
+                               request=request, resource=self)
 
         if form.is_valid():
             instance = form.save(commit=False)

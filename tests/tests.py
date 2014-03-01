@@ -270,6 +270,16 @@ class SetObjectSetTestCase(TestCase):
         self.assertEqual(s._through_set_rel, 'object_set')
         self.assertEqual(s._through_object_rel, 'set_object')
 
+    def test_add(self):
+        s = RecordSet([Record(pk=1)])
+        s.save()
+
+        r2 = Record(pk=2)
+        self.assertTrue(s.add(r2, added=True))
+        self.assertEqual(s.count, 2)
+
+        self.assertEqual(s.added.objects.count(), 1)
+
     def test_remove(self):
         s = RecordSet()
         s.save()
@@ -281,7 +291,7 @@ class SetObjectSetTestCase(TestCase):
         self.assertFalse(s.remove(r1))
 
         # The `removed` record still exists
-        self.assertEqual(s._set_objects().count(), 1)
+        self.assertEqual(s.removed.objects.count(), 1)
 
     def test_remove_delete(self):
         s = RecordSet()

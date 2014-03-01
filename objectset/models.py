@@ -336,6 +336,32 @@ class ObjectSet(models.Model):
 
         return True
 
+    @property
+    def added(self):
+        "Returns the set of objects that have been added to this set."
+        # Not saved or added flag not supported; return empty set
+        if not self.pk or not self._set_object_class_supported:
+            return self.__class__()
+
+        objects = self._object_class.objects.all()
+        pks = self._set_objects(added=True)\
+            .values_list('{0}__pk'.format(self._through_object_rel))
+
+        return self.__class__(objects.filter(pk__in=pks))
+
+    @property
+    def removed(self):
+        "Returns the set of objects that have been removed from this set."
+        # Not saved or added flag not supported; return empty set
+        if not self.pk or not self._set_object_class_supported:
+            return self.__class__()
+
+        objects = self._object_class.objects.all()
+        pks = self._set_objects(removed=True)\
+            .values_list('{0}__pk'.format(self._through_object_rel))
+
+        return self.__class__(objects.filter(pk__in=pks))
+
     @transaction.commit_on_success
     def save(self, *args, **kwargs):
         # If this is new, use bulk if supported

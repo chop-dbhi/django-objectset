@@ -20,7 +20,7 @@ class ObjectSetManagerDescriptor(ManagerDescriptor):
 
     def __get__(self, instance, type=None):
         if instance is not None:
-            return instance._objects
+            return instance._objects()
         return super(ObjectSetManagerDescriptor, self).__get__(instance, type)
 
 
@@ -54,7 +54,7 @@ class ObjectSet(models.Model):
     modified = models.DateTimeField(default=datetime.now, editable=False)
 
     # Custom manager to give instance-level access to `objects` which returns
-    # the objects this set contains. This proxies to `_objects`
+    # the objects this set contains. This proxies to `_objects()`
     objects = ObjectSetManager()
 
     class Meta(object):
@@ -97,8 +97,8 @@ class ObjectSet(models.Model):
         "Returns the length (size) of this set."
         return self.count
 
-    # TODO: this prevents the set  from ever being falsy..
     def __nonzero__(self):
+        "Prevents the set from being falsy."
         return True
 
     def __repr__(self):
@@ -255,43 +255,44 @@ class ObjectSet(models.Model):
         """
         return issubclass(self._set_object_class, SetObject)
 
-    @property
     def _objects(self):
         "Returns a QuerySet of objects in this set including pending ones."
         if not self.pk:
             return self._pending
 
+        kwargs = {}
+
+        if self._set_object_class_supported:
+            kwargs['removed'] = False
+
         objects = self._object_class.objects.all()
-        pks = self._set_objects(include_removed=False)\
+        pks = self._set_objects(**kwargs)\
             .values_list('{0}__pk'.format(self._through_object_rel))
 
         return objects.filter(pk__in=pks) | self._pending
 
-    def _set_objects(self, include_removed=True):
-        """Returns a queryset of set objects. If `include_removed` is true and
-        is supported by the through model, objects marked as 'removed' will
-        not be included in the set.
+    def _set_objects(self, **kwargs):
+        """Returns a queryset of set objects. Keyword arguments are passed as
+        filters the set objects queryset.
         """
-        kwargs = {self._through_set_rel: self}
-        if not include_removed and self._set_object_class_supported:
-            kwargs['removed'] = False
+        kwargs[self._through_set_rel] = self
         return self._set_object_class.objects.filter(**kwargs)
 
-    def _get_set_object(self, obj, include_removed=True):
+    def _get_set_object(self, obj, **kwargs):
         """Attempts to return an intermediate set object or None for the
         specified object.
         """
-        kwargs = {self._through_object_rel: obj}
+        kwargs[self._through_object_rel] = obj
 
         try:
-            return self._set_objects(include_removed).get(**kwargs)
+            return self._set_objects(**kwargs).get(**kwargs)
         except self._set_object_class.DoesNotExist:
             pass
 
-    def _set_object_exists(self, obj, include_removed=True):
+    def _set_object_exists(self, obj, **kwargs):
         "Returns a boolean if the object is contained in this set."
-        kwargs = {self._through_object_rel: obj}
-        return self._set_objects(include_removed).filter(**kwargs).exists()
+        kwargs[self._through_object_rel] = obj
+        return self._set_objects(**kwargs).exists()
 
     def _make_set_object(self, obj, **defaults):
         "Makes a new set object."
@@ -431,7 +432,7 @@ class ObjectSet(models.Model):
         if delete or not self._set_object_class_supported:
             self._set_objects().delete()
         else:
-            self._set_objects(include_removed=False).update(removed=True)
+            self._set_objects(removed=False).update(removed=True)
         self.count = 0
         self.modified = datetime.now()
         self.save()
@@ -451,7 +452,7 @@ class ObjectSet(models.Model):
         "Deletes objects in the set marked as `removed`."
         self._check_pk()
         if self._set_object_class_supported:
-            self._set_objects().filter(removed=True).delete()
+            self._set_objects(removed=True).delete()
 
 
 class SetObject(models.Model):
